@@ -1,0 +1,22 @@
+# Python
+*.pyc
+__pycache__/
+
+# Virtual Environments
+venv*/
+*/venv*/
+
+# Django SQLite DB
+db.sqlite3
+
+# VS Code settings
+.vscode/
+
+# Environment Variables
+.env
+
+# Node Modules (for React)
+node_modules/
+
+# Build Files (for React)
+build/
