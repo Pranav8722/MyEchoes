@@ -1,102 +1,98 @@
 import React, { useState, useEffect } from 'react';
 import axios from '../api/axios';
+import { Slide } from 'react-slideshow-image';
+import 'react-slideshow-image/dist/styles.css';
 
 const Dashboard = () => {
     const [playlists, setPlaylists] = useState([]);
-    const [playlistName, setPlaylistName] = useState('');
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [selectedPlaylist, setSelectedPlaylist] = useState('');
+    const [selectedPlaylist, setSelectedPlaylist] = useState(null);
+    const [musicFileUrl, setMusicFileUrl] = useState('');
+    const [playlistImages, setPlaylistImages] = useState([]);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [file, setFile] = useState(null);
 
-    const token = localStorage.getItem('accessToken');
-    const authHeader = { headers: { Authorization: `Bearer ${token}` } };
-
-    const fetchPlaylists = async () => {
-        try {
-            const response = await axios.get('playlists/playlists/', authHeader);
-            setPlaylists(response.data);
-        } catch (error) {
-            console.error('Failed to fetch playlists');
-        }
-    };
-
+    // Fetch all playlists for the logged-in user
     useEffect(() => {
-        fetchPlaylists();
+        axios.get('playlists/')
+            .then(response => setPlaylists(response.data))
+            .catch(error => console.error(error));
     }, []);
 
-    const handleCreatePlaylist = async (e) => {
-        e.preventDefault();
-        try {
-            await axios.post('playlists/playlists/', { name: playlistName }, authHeader);
-            setPlaylistName('');
-            fetchPlaylists();
-        } catch (error) {
-            alert('Failed to create playlist.');
-        }
+    const handlePlaylistSelect = (playlist) => {
+        setSelectedPlaylist(playlist);
+        setMusicFileUrl(playlist.music_file); // You should provide music file URL from backend
+        setPlaylistImages(playlist.images); // You should provide image URLs from backend
     };
 
-    const handleFileUpload = async (e) => {
-        e.preventDefault();
-        if (!selectedFile || !selectedPlaylist) {
-            alert('Please select file and playlist');
-            return;
-        }
+    const handleFileChange = (e) => {
+        setFile(e.target.files[0]);
+    };
+
+    const handleUpload = () => {
+        if (!file || !selectedPlaylist) return;
 
         const formData = new FormData();
-        formData.append('playlist', selectedPlaylist);
-        formData.append('file', selectedFile);
-        formData.append('file_type', selectedFile.type.startsWith('video') ? 'video' : 'image');
+        formData.append('file', file);
+        formData.append('playlist_id', selectedPlaylist.id);
 
-        try {
-            await axios.post('playlists/media/upload/', formData, {
-                ...authHeader,
-                headers: { ...authHeader.headers, 'Content-Type': 'multipart/form-data' }
-            });
-            alert('File uploaded successfully!');
-            fetchPlaylists();
-        } catch (error) {
-            alert('Failed to upload file.');
-        }
+        axios.post('playlists/upload/', formData)
+            .then(response => {
+                alert('File uploaded successfully!');
+                // Optionally reload playlist files
+            })
+            .catch(error => console.error(error));
     };
 
     return (
-        <div className="p-6 bg-gray-900 min-h-screen text-white">
-            <h1 className="text-3xl mb-6">MyEchoes Dashboard</h1>
+        <div className="p-4 space-y-6">
+            <h1 className="text-3xl font-bold text-center mb-4">Welcome to MyEchoes 🎧</h1>
 
-            <form onSubmit={handleCreatePlaylist} className="flex gap-4 mb-6">
-                <input type="text" value={playlistName} onChange={(e) => setPlaylistName(e.target.value)} placeholder="Playlist Name" className="p-2 rounded text-black" />
-                <button type="submit" className="bg-blue-500 p-2 rounded hover:bg-blue-600">Create Playlist</button>
-            </form>
-
-            <form onSubmit={handleFileUpload} className="flex gap-4 mb-6">
-                <select onChange={(e) => setSelectedPlaylist(e.target.value)} className="p-2 rounded text-black">
-                    <option value="">Select Playlist</option>
-                    {playlists.map((playlist) => (
-                        <option key={playlist.id} value={playlist.id}>{playlist.name}</option>
-                    ))}
-                </select>
-                <input type="file" onChange={(e) => setSelectedFile(e.target.files[0])} className="p-2 rounded text-white" />
-                <button type="submit" className="bg-green-500 p-2 rounded hover:bg-green-600">Upload File</button>
-            </form>
-
-            <div>
-                <h2 className="text-2xl mb-4">Your Playlists:</h2>
+            {/* Playlist Selection */}
+            <div className="flex space-x-4 overflow-x-auto">
                 {playlists.map((playlist) => (
-                    <div key={playlist.id} className="mb-4">
-                        <h3 className="text-xl">{playlist.name}</h3>
-                        <div className="flex gap-2 flex-wrap mt-2">
-                            {playlist.media_files.map((media) => (
-                                <div key={media.id}>
-                                    {media.file_type === 'image' ? (
-                                        <img src={media.file} alt="Uploaded" className="w-32 h-32 object-cover rounded" />
-                                    ) : (
-                                        <video src={media.file} controls className="w-32 h-32 rounded" />
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    <button
+                        key={playlist.id}
+                        className={`p-2 rounded-xl border ${selectedPlaylist?.id === playlist.id ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
+                        onClick={() => handlePlaylistSelect(playlist)}
+                    >
+                        {playlist.name}
+                    </button>
                 ))}
             </div>
+
+            {/* Music Player */}
+            {musicFileUrl && (
+                <div className="flex flex-col items-center">
+                    <audio
+                        controls
+                        src={musicFileUrl}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                        className="mb-4 w-full"
+                    />
+                </div>
+            )}
+
+            {/* Slideshow */}
+            {isPlaying && playlistImages.length > 0 && (
+                <Slide easing="ease" duration={3000} indicators={true}>
+                    {playlistImages.map((image, index) => (
+                        <div key={index} className="each-slide flex justify-center items-center h-64 bg-black">
+                            <img src={image} alt={`Slide ${index}`} className="h-full object-contain rounded-xl" />
+                        </div>
+                    ))}
+                </Slide>
+            )}
+
+            {/* File Upload */}
+            {selectedPlaylist && (
+                <div className="mt-6">
+                    <input type="file" onChange={handleFileChange} className="mb-2" />
+                    <button onClick={handleUpload} className="px-4 py-2 bg-green-500 text-white rounded-lg">
+                        Upload to {selectedPlaylist.name}
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
