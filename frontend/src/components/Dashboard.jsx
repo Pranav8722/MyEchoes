@@ -11,22 +11,19 @@ const Dashboard = () => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [file, setFile] = useState(null);
 
-    // Fetch all playlists for the logged-in user
     useEffect(() => {
-        axios.get('playlists/')
+        axios.get('playlists/', { headers: { Authorization: `Bearer ${localStorage.getItem('access')}` } })
             .then(response => setPlaylists(response.data))
             .catch(error => console.error(error));
     }, []);
 
     const handlePlaylistSelect = (playlist) => {
         setSelectedPlaylist(playlist);
-        setMusicFileUrl(playlist.music_file); // You should provide music file URL from backend
-        setPlaylistImages(playlist.images); // You should provide image URLs from backend
+        setMusicFileUrl(playlist.music_file);
+        setPlaylistImages(playlist.images);
     };
 
-    const handleFileChange = (e) => {
-        setFile(e.target.files[0]);
-    };
+    const handleFileChange = (e) => setFile(e.target.files[0]);
 
     const handleUpload = () => {
         if (!file || !selectedPlaylist) return;
@@ -35,10 +32,12 @@ const Dashboard = () => {
         formData.append('file', file);
         formData.append('playlist_id', selectedPlaylist.id);
 
-        axios.post('playlists/upload/', formData)
+        axios.post('playlists/upload/', formData, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('access')}` }
+        })
             .then(response => {
                 alert('File uploaded successfully!');
-                // Optionally reload playlist files
+                setPlaylistImages([...playlistImages, response.data.file_url]);
             })
             .catch(error => console.error(error));
     };
@@ -86,7 +85,7 @@ const Dashboard = () => {
 
             {/* File Upload */}
             {selectedPlaylist && (
-                <div className="mt-6">
+                <div className="mt-6 flex flex-col items-center">
                     <input type="file" onChange={handleFileChange} className="mb-2" />
                     <button onClick={handleUpload} className="px-4 py-2 bg-green-500 text-white rounded-lg">
                         Upload to {selectedPlaylist.name}
