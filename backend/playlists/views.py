@@ -1,26 +1,24 @@
 from rest_framework import generics, permissions
-from .models import Playlist, MediaFile
-from .serializers import PlaylistSerializer, MediaFileSerializer
+from .models import Playlist
+from .serializers import PlaylistSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+from rest_framework import status
 
-# Playlist Creation and Listing
 class PlaylistListCreateView(generics.ListCreateAPIView):
+    queryset = Playlist.objects.all()
     serializer_class = PlaylistSerializer
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_queryset(self):
-        return Playlist.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-
-# Upload Media Files to Playlist
 class MediaFileUploadView(generics.CreateAPIView):
-    serializer_class = MediaFileSerializer
+    queryset = Playlist.objects.all()
+    serializer_class = PlaylistSerializer
+    parser_classes = [MultiPartParser, FormParser]
     permission_classes = [permissions.IsAuthenticated]
 
-    def perform_create(self, serializer):
-        playlist = Playlist.objects.get(id=self.request.data.get('playlist'))
-        if playlist.user != self.request.user:
-            raise PermissionError("You don't have access to this playlist.")
-        serializer.save()
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
